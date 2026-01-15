@@ -2,19 +2,17 @@ import { getMetadata, fetchPlaceholders } from '../../scripts/aem.js';
 import { loadFragment } from '../fragment/fragment.js';
 import { getHostname } from '../../scripts/utils.js';
 
+import { getNavigationMenu, formatNavigationJsonData } from './navigation.js';
 import {
-  getNavigationMenu, formatNavigationJsonData,
-} from './navigation.js';
-import {
-  getLanguage, getSiteName, TAG_ROOT, PATH_PREFIX, SUPPORTED_LANGUAGES, computeLocalizedUrl, discoverLanguagesFromPlaceholders,
+  getLanguage,
+  getSiteName,
+  TAG_ROOT,
+  PATH_PREFIX,
+  SUPPORTED_LANGUAGES,
+  computeLocalizedUrl,
+  discoverLanguagesFromPlaceholders,
 } from '../../scripts/utils.js';
-import {
-  button,
-  div,
-  img,
-  span,
-  a,
-} from '../../scripts/dom-helpers.js';
+import { button, div, img, span, a } from '../../scripts/dom-helpers.js';
 
 import { isAuthorEnvironment } from '../../scripts/scripts.js';
 
@@ -26,7 +24,9 @@ function closeOnEscape(e) {
   if (e.code === 'Escape') {
     const nav = document.getElementById('nav');
     const navSections = nav.querySelector('.nav-sections');
-    const navSectionExpanded = navSections.querySelector('[aria-expanded="true"]');
+    const navSectionExpanded = navSections.querySelector(
+      '[aria-expanded="true"]'
+    );
     if (navSectionExpanded && isDesktop.matches) {
       // eslint-disable-next-line no-use-before-define
       toggleAllNavSections(navSections);
@@ -43,7 +43,9 @@ function closeOnFocusLost(e) {
   const nav = e.currentTarget;
   if (!nav.contains(e.relatedTarget)) {
     const navSections = nav.querySelector('.nav-sections');
-    const navSectionExpanded = navSections.querySelector('[aria-expanded="true"]');
+    const navSectionExpanded = navSections.querySelector(
+      '[aria-expanded="true"]'
+    );
     if (navSectionExpanded && isDesktop.matches) {
       // eslint-disable-next-line no-use-before-define
       toggleAllNavSections(navSections, false);
@@ -75,28 +77,40 @@ function focusNavSection() {
  * @param {Boolean} expanded Whether the element should be expanded or collapsed
  */
 function toggleAllNavSections(sections, expanded = false) {
-    const navSections = sections.querySelectorAll('.nav-sections .default-content-wrapper > ul > li');
-    if (navSections && navSections.length > 0) {
-      navSections.forEach((section) => {
-        section.setAttribute('aria-expanded', expanded);
-      });
-    }
+  const navSections = sections.querySelectorAll(
+    '.nav-sections .default-content-wrapper > ul > li'
+  );
+  if (navSections && navSections.length > 0) {
+    navSections.forEach((section) => {
+      section.setAttribute('aria-expanded', expanded);
+    });
+  }
 }
 
 async function overlayLoad(navSections) {
   const langCode = getLanguage();
   const placeholdersData = await fetchLanguagePlaceholders();
-  const navOverlay = navSections.querySelector(constants.NAV_MENU_OVERLAY_WITH_SELECTOR);
+  const navOverlay = navSections.querySelector(
+    constants.NAV_MENU_OVERLAY_WITH_SELECTOR
+  );
   if (!navOverlay) {
-    const structuredNav = formatNavigationJsonData(window.navigationData[`/${langCode}`]);
+    const structuredNav = formatNavigationJsonData(
+      window.navigationData[`/${langCode}`]
+    );
     // Add navigation menu to header
     navSections.append(getNavigationMenu(structuredNav, placeholdersData));
   }
   const rightColumn = navSections.querySelector('.nav-menu-column.right');
   const leftColumn = navSections.querySelector('.nav-menu-column.left');
-  isDesktop.addEventListener('change', () => closesideMenu(leftColumn, rightColumn));
-  document.body.addEventListener('click', (e) => closesearchbar(e, navSections));
-  document.body.addEventListener('keydown', (e) => closesearchbar(e, navSections));
+  isDesktop.addEventListener('change', () =>
+    closesideMenu(leftColumn, rightColumn)
+  );
+  document.body.addEventListener('click', (e) =>
+    closesearchbar(e, navSections)
+  );
+  document.body.addEventListener('keydown', (e) =>
+    closesearchbar(e, navSections)
+  );
 }
 
 /**
@@ -106,20 +120,28 @@ async function overlayLoad(navSections) {
  * @param {*} forceExpanded Optional param to force nav expand behavior when not null
  */
 async function toggleMenu(nav, navSections, forceExpanded = null) {
-
   /*
   if (window.navigationData) {
     await overlayLoad(navSections);
   } else {
     return;
   }*/
-  
-  const expanded = forceExpanded !== null ? !forceExpanded : nav.getAttribute('aria-expanded') === 'true';
+
+  const expanded =
+    forceExpanded !== null
+      ? !forceExpanded
+      : nav.getAttribute('aria-expanded') === 'true';
   const button = nav.querySelector('.nav-hamburger button');
-  document.body.style.overflowY = (expanded || isDesktop.matches) ? '' : 'hidden';
+  document.body.style.overflowY = expanded || isDesktop.matches ? '' : 'hidden';
   nav.setAttribute('aria-expanded', expanded ? 'false' : 'true');
-  toggleAllNavSections(navSections, expanded || isDesktop.matches ? 'false' : 'true');
-  button.setAttribute('aria-label', expanded ? 'Open navigation' : 'Close navigation');
+  toggleAllNavSections(
+    navSections,
+    expanded || isDesktop.matches ? 'false' : 'true'
+  );
+  button.setAttribute(
+    'aria-label',
+    expanded ? 'Open navigation' : 'Close navigation'
+  );
   // enable nav dropdown keyboard accessibility
   const navDrops = navSections.querySelectorAll('.nav-drop');
   if (isDesktop.matches) {
@@ -148,12 +170,13 @@ async function toggleMenu(nav, navSections, forceExpanded = null) {
   }
 }
 
-
 function settingAltTextForSearchIcon() {
   const searchImage = document.querySelector('.icon-search-light');
   if (!searchImage) {
     // eslint-disable-next-line no-console
-    console.debug('header: .icon-search-light not found; skipping search icon init');
+    console.debug(
+      'header: .icon-search-light not found; skipping search icon init'
+    );
     return;
   }
   searchImage.style.cursor = 'pointer';
@@ -169,13 +192,12 @@ function settingAltTextForSearchIcon() {
   //searchImage.setAttribute('title', listOfAllPlaceholdersData.searchAltText || 'Search');
 }
 
-
 function handleEnterKey(event) {
   if (event.key !== 'Enter') return;
   const inputValue = document.querySelector('.search-container input').value;
   //const url = (listOfAllPlaceholdersData.searchRedirectUrl || 'https://wknd.site/en/search?q=') + inputValue;
-  
-  const url = `/content/${siteName}/search-results.html?q=`+ inputValue;
+
+  const url = `/content/${siteName}/search-results.html?q=` + inputValue;
 
   if (inputValue) window.location.href = url;
 }
@@ -199,14 +221,12 @@ function createSearchBox() {
 
     searchImage.style.display = isVisible ? 'block' : 'none';
   } else {
-    cancelContainer = div(
-      {
-        class: 'cancel-container',
-        role: 'button',
-        tabindex: 0,
-        'aria-label': 'close Search Box',
-      },
-    );
+    cancelContainer = div({
+      class: 'cancel-container',
+      role: 'button',
+      tabindex: 0,
+      'aria-label': 'close Search Box',
+    });
     const cancelImg = img({ class: 'cancel-image' });
     cancelImg.src = `${window.hlx.codeBasePath}/icons/cancel.svg`;
     cancelImg.alt = 'cancel';
@@ -234,7 +254,8 @@ function createSearchBox() {
     searchIcon.addEventListener('click', () => {
       if (searchInputBox.value) {
         ///window.location.href = (listOfAllPlaceholdersData.searchRedirectUrl || '<sitename>/en/search?q=') + searchInputBox.value;
-        window.location.href = `/content/${siteName}/search-results.html?q=` + searchInputBox.value;
+        window.location.href =
+          `/content/${siteName}/search-results.html?q=` + searchInputBox.value;
       }
     });
 
@@ -251,7 +272,7 @@ function createSearchBox() {
     const searchContainerWrapper = div({ class: 'search-input-wrapper' });
     searchContainerWrapper.append(searchInputContainer);
     searchContainer.appendChild(searchContainerWrapper);
-    
+
     navTools.appendChild(searchContainer);
   }
 }
@@ -266,15 +287,19 @@ function createSearchBox() {
 function closeSearchBox() {
   const navWrapper = document.querySelector('.nav-wrapper');
   const headerWrapper = document.querySelector('.header-wrapper');
-  const searchContainer = headerWrapper ? headerWrapper.querySelector('.search-container') : null;
-  const cancelContainer = navWrapper ? navWrapper.querySelector('.cancel-container') : null;
+  const searchContainer = headerWrapper
+    ? headerWrapper.querySelector('.search-container')
+    : null;
+  const cancelContainer = navWrapper
+    ? navWrapper.querySelector('.cancel-container')
+    : null;
   // const overlay = document.querySelector('.overlay');
   //const searchImage = document.querySelector('.-light');
   const searchImage = document.querySelector('.icon-search-light');
   // if(searchContainer){
   //   searchContainer.style.display = 'none';
   // }
-  if(cancelContainer){
+  if (cancelContainer) {
     cancelContainer.style.display = 'none';
   }
   if (searchImage) {
@@ -291,11 +316,20 @@ const closeSearchOnFocusOut = (e, navTools) => {
   const searchContainer = headerWrapper.querySelector('.search-container');
 
   if (searchContainer && searchContainer.style.display !== 'none') {
-    const cancelContainer = navTools ? navTools.querySelector('.cancel-container') : null;
-    const searchImage = navTools ? navTools.querySelector('.icon-search-light') : null;
-    const isClickInside = (searchContainer && searchContainer.contains && searchContainer.contains(e.target))
-    || (cancelContainer && cancelContainer.contains && cancelContainer.contains(e.target))
-    || (searchImage && searchImage.contains && searchImage.contains(e.target));
+    const cancelContainer = navTools
+      ? navTools.querySelector('.cancel-container')
+      : null;
+    const searchImage = navTools
+      ? navTools.querySelector('.icon-search-light')
+      : null;
+    const isClickInside =
+      (searchContainer &&
+        searchContainer.contains &&
+        searchContainer.contains(e.target)) ||
+      (cancelContainer &&
+        cancelContainer.contains &&
+        cancelContainer.contains(e.target)) ||
+      (searchImage && searchImage.contains && searchImage.contains(e.target));
     if (!isClickInside) {
       closeSearchBox();
     }
@@ -303,65 +337,73 @@ const closeSearchOnFocusOut = (e, navTools) => {
 };
 
 async function addLogoLink(langCode) {
-
   //urn:aemconnection:/content/wknd-universal/language-masters/en/magazine/jcr:content
   const currentLang = langCode || getLanguage();
-  const aueResource = document.body.getAttribute('data-aue-resource')
+  const aueResource = document.body
+    .getAttribute('data-aue-resource')
     ?.replace(new RegExp(`^.*?(\\/content.*?\\/${currentLang}).*$`), '$1');
-  
-  let logoLink = '';
-    if(aueResource !== null && aueResource !== undefined && aueResource !== ''){
-      logoLink = aueResource+'.html';
-    } else {
-      if(langCode === 'en') {
-        logoLink = window.location.origin;
-      } else {
-        logoLink = window.location.origin + `/${langCode}`;
-      }
-    }
 
-    try {
-      const logoImage = document.querySelector('.nav-brand img');
-      const anchor = document.createElement('a');
-      Object.assign(anchor, {
-          href: logoLink,
-          title: logoImage?.alt,
-      });
-      const picture = document.querySelector('.nav-brand picture');
-      if (picture) anchor.appendChild(picture);
-      const targetElement = document.querySelector('.nav-brand .default-content-wrapper');
-      if (targetElement) {
-          targetElement.appendChild(anchor);
-      }
-    } catch (error) {
-      console.error('Error in addLogoLink:', error);
+  let logoLink = '';
+  if (aueResource !== null && aueResource !== undefined && aueResource !== '') {
+    logoLink = aueResource + '.html';
+  } else {
+    if (langCode === 'en') {
+      logoLink = window.location.origin;
+    } else {
+      logoLink = window.location.origin + `/${langCode}`;
     }
+  }
+
+  try {
+    const logoImage = document.querySelector('.nav-brand img');
+    const anchor = document.createElement('a');
+    Object.assign(anchor, {
+      href: logoLink,
+      title: logoImage?.alt,
+    });
+    const picture = document.querySelector('.nav-brand picture');
+    if (picture) anchor.appendChild(picture);
+    const targetElement = document.querySelector(
+      '.nav-brand .default-content-wrapper'
+    );
+    if (targetElement) {
+      targetElement.appendChild(anchor);
+    }
+  } catch (error) {
+    console.error('Error in addLogoLink:', error);
+  }
 }
 
-
 async function applyCFTheme(themeCFReference) {
-   if (!themeCFReference) return;
-  
+  if (!themeCFReference) return;
+
   const CONFIG = {
-    WRAPPER_SERVICE_URL: 'https://3635370-refdemoapigateway-stage.adobeioruntime.net/api/v1/web/ref-demo-api-gateway/fetch-cf',
+    WRAPPER_SERVICE_URL:
+      'https://3635370-refdemoapigateway-stage.adobeioruntime.net/api/v1/web/ref-demo-api-gateway/fetch-cf',
     GRAPHQL_QUERY: '/graphql/execute.json/ref-demo-eds/BrandThemeByPath',
-    EXCLUDED_THEME_KEYS: new Set(['brandSite', 'brandLogo'])
+    EXCLUDED_THEME_KEYS: new Set(['brandSite', 'brandLogo']),
   };
 
   try {
     const decodedThemeCFReference = decodeURIComponent(themeCFReference);
     const hostnameFromPlaceholders = await getHostname();
-    const hostname = hostnameFromPlaceholders ? hostnameFromPlaceholders : getMetadata('hostname');
+    const hostname = hostnameFromPlaceholders
+      ? hostnameFromPlaceholders
+      : getMetadata('hostname');
     const aemauthorurl = getMetadata('authorurl') || '';
-    const aempublishurl = hostname?.replace('author', 'publish')?.replace(/\/$/, '');
+    const aempublishurl = hostname
+      ?.replace('author', 'publish')
+      ?.replace(/\/$/, '');
     const isAuthor = isAuthorEnvironment();
 
     // Prepare request configuration based on environment
-    const requestConfig = isAuthor 
+    const requestConfig = isAuthor
       ? {
-          url: `${aemauthorurl}${CONFIG.GRAPHQL_QUERY};path=${decodedThemeCFReference};ts=${Date.now()}`,
+          url: `${aemauthorurl}${
+            CONFIG.GRAPHQL_QUERY
+          };path=${decodedThemeCFReference};ts=${Date.now()}`,
           method: 'GET',
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 'Content-Type': 'application/json' },
         }
       : {
           url: `${CONFIG.WRAPPER_SERVICE_URL}`,
@@ -370,29 +412,26 @@ async function applyCFTheme(themeCFReference) {
           body: JSON.stringify({
             graphQLPath: `${aempublishurl}${CONFIG.GRAPHQL_QUERY}`,
             cfPath: decodedThemeCFReference,
-            variation: `master;ts=${Date.now()}`
-          })
+            variation: `master;ts=${Date.now()}`,
+          }),
         };
 
     // Fetch theme data
     const response = await fetch(requestConfig.url, {
       method: requestConfig.method,
       headers: requestConfig.headers,
-      ...(requestConfig.body && { body: requestConfig.body })
+      ...(requestConfig.body && { body: requestConfig.body }),
     });
 
     if (!response.ok) {
-       console.error(`HTTP error! status: ${response.status}`);
+      console.error(`HTTP error! status: ${response.status}`);
     }
 
     let themeCFRes;
 
-    
     try {
+      const responseText = await response.text();
 
-
-       const responseText = await response.text();
-      
       if (!responseText || responseText.trim() === '') {
         console.warn('Empty response received from server');
         return;
@@ -410,10 +449,13 @@ async function applyCFTheme(themeCFReference) {
 
     // Apply theme colors to CSS variables
     const cssVariables = Object.entries(themeColors)
-      .filter(([key, value]) => 
-        value != null && !CONFIG.EXCLUDED_THEME_KEYS.has(key)
+      .filter(
+        ([key, value]) => value != null && !CONFIG.EXCLUDED_THEME_KEYS.has(key)
       )
-      .map(([key, value]) => `  --brand-${key.replace(/([A-Z])/g, '-$1').toLowerCase()}: ${value};`)
+      .map(
+        ([key, value]) =>
+          `  --brand-${key.replace(/([A-Z])/g, '-$1').toLowerCase()}: ${value};`
+      )
       .join('\n');
 
     if (cssVariables) {
@@ -421,12 +463,10 @@ async function applyCFTheme(themeCFReference) {
       styleElement.textContent = `:root {\n${cssVariables}\n}`;
       document.head.appendChild(styleElement);
     }
-
   } catch (error) {
     console.error('Error applying theme:', error);
   }
 }
-
 
 /**
  * loads and decorates the header, mainly the nav
@@ -438,27 +478,26 @@ export default async function decorate(block) {
 
   const themeCFReference = getMetadata('theme_cf_reference');
   applyCFTheme(themeCFReference);
-  
 
-  
   const navMeta = getMetadata('nav');
   const langCode = getLanguage();
-  console.log("langCode :"+langCode);
+  console.log('langCode :' + langCode);
 
-   const isAuthor = isAuthorEnvironment();
-    let navPath =`/${langCode}/nav`;
-  
-    if(isAuthor){
-      navPath = navMeta ? new URL(navMeta, window.location).pathname : `/content/${siteName}${PATH_PREFIX}/${langCode}/nav`;
-    }
-   
+  const isAuthor = isAuthorEnvironment();
+  let navPath = `/${langCode}/nav`;
 
-  
+  if (isAuthor) {
+    navPath = navMeta
+      ? new URL(navMeta, window.location).pathname
+      : `/content/${siteName}${PATH_PREFIX}/${langCode}/nav`;
+  }
+
   //const navPath = navMeta ? new URL(navMeta, window.location).pathname : '/nav';
 
   const pathSegments = window.location.pathname.split('/').filter(Boolean);
   //console.log("pathSegments header: ", pathSegments);
-  const parentPath = pathSegments.length > 2 ? `/${pathSegments.slice(0, 3).join('/')}` : '/';
+  const parentPath =
+    pathSegments.length > 2 ? `/${pathSegments.slice(0, 3).join('/')}` : '/';
   //console.log("parentPath header: ", parentPath);
   //const navPath = locale ? `/${locale}/nav` : parentPath+'/nav';
   //const navPath = parentPath=='/' ? locale ? `/${locale}/nav` : '/nav' : locale ? `/${locale}/nav` : parentPath+'/nav';
@@ -469,7 +508,8 @@ export default async function decorate(block) {
   block.textContent = '';
   const nav = document.createElement('nav');
   nav.id = 'nav';
-  while (fragment && fragment.firstElementChild) nav.append(fragment.firstElementChild);
+  while (fragment && fragment.firstElementChild)
+    nav.append(fragment.firstElementChild);
 
   const classes = ['brand', 'sections', 'tools'];
   classes.forEach((c, i) => {
@@ -486,21 +526,30 @@ export default async function decorate(block) {
 
   const navSections = nav.querySelector('.nav-sections');
   if (navSections) {
-    navSections.querySelectorAll(':scope .default-content-wrapper > ul > li').forEach((navSection) => {
-      if (navSection.querySelector('ul')) navSection.classList.add('nav-drop');
-      navSection.addEventListener('click', () => {
-        if (isDesktop.matches) {
-          const expanded = navSection.getAttribute('aria-expanded') === 'true';
-          toggleAllNavSections(navSections);
-          navSection.setAttribute('aria-expanded', expanded ? 'false' : 'true');
-        }
+    navSections
+      .querySelectorAll(':scope .default-content-wrapper > ul > li')
+      .forEach((navSection) => {
+        if (navSection.querySelector('ul'))
+          navSection.classList.add('nav-drop');
+        navSection.addEventListener('click', () => {
+          if (isDesktop.matches) {
+            const expanded =
+              navSection.getAttribute('aria-expanded') === 'true';
+            toggleAllNavSections(navSections);
+            navSection.setAttribute(
+              'aria-expanded',
+              expanded ? 'false' : 'true'
+            );
+          }
+        });
       });
-    });
   }
 
   const navTools = nav.querySelector('.nav-tools');
   if (navTools) {
-    const contentWrapper = nav.querySelector('.nav-tools > div[class = "default-content-wrapper"]');
+    const contentWrapper = nav.querySelector(
+      '.nav-tools > div[class = "default-content-wrapper"]'
+    );
     // Language switcher (minimal UI)
     try {
       const currentLang = getLanguage();
@@ -522,23 +571,45 @@ export default async function decorate(block) {
         langWrap.classList.add('single-lang');
       }
       const regionNames = (() => {
-        try { return new Intl.DisplayNames([navigator.language || 'en'], { type: 'region' }); } catch (e) { return null; }
+        try {
+          return new Intl.DisplayNames([navigator.language || 'en'], {
+            type: 'region',
+          });
+        } catch (e) {
+          return null;
+        }
       })();
       const languageNames = (() => {
-        try { return new Intl.DisplayNames([navigator.language || 'en'], { type: 'language' }); } catch (e) { return null; }
+        try {
+          return new Intl.DisplayNames([navigator.language || 'en'], {
+            type: 'language',
+          });
+        } catch (e) {
+          return null;
+        }
       })();
 
       uniqueLangs.forEach((raw) => {
         const code = String(raw).replace('_', '-').toLowerCase();
         const [langPart, regionPart] = code.split('-');
-        const displayCode = `${langPart}${regionPart ? `-${regionPart}` : ''}`.toUpperCase();
-        const country = regionPart ? (regionNames ? regionNames.of(regionPart.toUpperCase()) : regionPart.toUpperCase())
-          : (languageNames ? languageNames.of(langPart) : langPart.toUpperCase());
+        const displayCode = `${langPart}${
+          regionPart ? `-${regionPart}` : ''
+        }`.toUpperCase();
+        const country = regionPart
+          ? regionNames
+            ? regionNames.of(regionPart.toUpperCase())
+            : regionPart.toUpperCase()
+          : languageNames
+          ? languageNames.of(langPart)
+          : langPart.toUpperCase();
 
         const li = document.createElement('li');
         li.className = 'lang-item';
         li.setAttribute('role', 'option');
-        li.setAttribute('aria-selected', langPart === currentLang ? 'true' : 'false');
+        li.setAttribute(
+          'aria-selected',
+          langPart === currentLang ? 'true' : 'false'
+        );
 
         const link = document.createElement('a');
         // Use only language segment for routing if site paths are language-based
@@ -587,14 +658,20 @@ export default async function decorate(block) {
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Tab') {
         const headerWrapper = document.querySelector('.header-wrapper');
-        const searchContainer = headerWrapper ? headerWrapper.querySelector('.search-container') : null;
-        if (searchContainer && searchContainer.style.display !== 'none' && searchContainer.contains(e.target)) {
+        const searchContainer = headerWrapper
+          ? headerWrapper.querySelector('.search-container')
+          : null;
+        if (
+          searchContainer &&
+          searchContainer.style.display !== 'none' &&
+          searchContainer.contains(e.target)
+        ) {
           closeSearchBox();
         }
       }
     });
   }
-  
+
   // hamburger for mobile
   const hamburger = document.createElement('div');
   hamburger.classList.add('nav-hamburger');
@@ -606,7 +683,9 @@ export default async function decorate(block) {
   nav.setAttribute('aria-expanded', 'false');
   // prevent mobile nav behavior on window resize
   toggleMenu(nav, navSections, isDesktop.matches);
-  isDesktop.addEventListener('change', () => toggleMenu(nav, navSections, isDesktop.matches));
+  isDesktop.addEventListener('change', () =>
+    toggleMenu(nav, navSections, isDesktop.matches)
+  );
 
   const navWrapper = document.createElement('div');
   navWrapper.className = 'nav-wrapper';
@@ -615,16 +694,27 @@ export default async function decorate(block) {
   settingAltTextForSearchIcon();
   //fetchingPlaceholdersData();
   addLogoLink(langCode);
-    // Ensure search icon mask uses correct base path in UE/author/local
-    try {
-      const iconEl = document.querySelector('header .search.search-icon .icon');
-      if (iconEl && window.hlx && window.hlx.codeBasePath) {
-        const iconUrl = `${window.hlx.codeBasePath}/icons/search.svg`;
-        iconEl.style.webkitMask = `url(${iconUrl}) no-repeat center / contain`;
-        iconEl.style.mask = `url(${iconUrl}) no-repeat center / contain`;
-      }
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.debug('search icon mask init skipped', e);
+  // Ensure search icon mask uses correct base path in UE/author/local
+  try {
+    const iconEl = document.querySelector('header .search.search-icon .icon');
+    if (iconEl && window.hlx && window.hlx.codeBasePath) {
+      const iconUrl = `${window.hlx.codeBasePath}/icons/search.svg`;
+      iconEl.style.webkitMask = `url(${iconUrl}) no-repeat center / contain`;
+      iconEl.style.mask = `url(${iconUrl}) no-repeat center / contain`;
     }
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.debug('search icon mask init skipped', e);
+  }
+  function handleScroll() {
+    if (window.scrollY > 0) {
+      navWrapper.classList.add('scrolled');
+    } else {
+      navWrapper.classList.remove('scrolled');
+    }
+  }
+
+  window.addEventListener('scroll', handleScroll);
+  // initialize on load
+  handleScroll();
 }

@@ -1,9 +1,18 @@
 /* header and nav layout */
 header .nav-wrapper {
-  background-color: var(--dark-color-opacity);
   width: 100%;
   z-index: 2;
   position: fixed;
+  background: linear-gradient(
+    to bottom,
+    var(--dark-color-opacity),
+    rgba(255, 255, 255, 0)
+  );
+  transition: background-color 0.3s ease;
+}
+
+header .nav-wrapper.scrolled {
+  background-color: var(--dark-color-opacity);
 }
 
 header nav {
@@ -69,10 +78,11 @@ header nav p {
 header nav a:any-link {
   color: currentcolor;
 }
-header nav a::after, header nav a:hover::after, header nav a.button::after {
+header nav a::after,
+header nav a:hover::after,
+header nav a.button::after {
   content: '';
 }
-
 
 /* hamburger */
 header nav .nav-hamburger {
@@ -207,7 +217,7 @@ header nav .nav-sections ul > li {
   font-weight: 500;
 }
 
-header nav .nav-sections ul > li > a {  
+header nav .nav-sections ul > li > a {
   font-size: 18px;
   color: var(--nav-text-color);
   text-decoration: none;
@@ -228,12 +238,34 @@ header nav .nav-sections ul > li > a::before {
   pointer-events: none;
   transform-origin: 50% 100%;
   transition: clip-path 0.3s, transform 0.3s cubic-bezier(0.2, 1, 0.8, 1);
-  clip-path: polygon(0% 0%, 0% 100%, 0 100%, 0 0, 100% 0, 100% 100%, 0 100%, 0 100%, 100% 100%, 100% 0%);
+  clip-path: polygon(
+    0% 0%,
+    0% 100%,
+    0 100%,
+    0 0,
+    100% 0,
+    100% 100%,
+    0 100%,
+    0 100%,
+    100% 100%,
+    100% 0%
+  );
 }
 
 header nav .nav-sections ul > li > a:hover::before {
   transform: translate3d(0, 2px, 0) scale3d(1.08, 3, 1);
-  clip-path: polygon(0% 0%, 0% 100%, 50% 100%, 50% 0, 50% 0, 50% 100%, 50% 100%, 0 100%, 100% 100%, 100% 0%);
+  clip-path: polygon(
+    0% 0%,
+    0% 100%,
+    50% 100%,
+    50% 0,
+    50% 0,
+    50% 100%,
+    50% 100%,
+    0 100%,
+    100% 100%,
+    100% 0%
+  );
 }
 
 header nav .nav-sections ul > li > a::after {
@@ -241,7 +273,6 @@ header nav .nav-sections ul > li > a::after {
   width: 0;
   padding: 0;
 }
-
 
 header nav .nav-sections ul > li > ul {
   margin-top: 0;
@@ -307,7 +338,13 @@ header nav .nav-sections ul > li > ul > li {
     position: relative;
   }
 
-  header nav .nav-sections .default-content-wrapper > ul > li[aria-expanded='true'] > ul {
+  header
+    nav
+    .nav-sections
+    .default-content-wrapper
+    > ul
+    > li[aria-expanded='true']
+    > ul {
     display: block;
     position: absolute;
     left: -24px;
@@ -375,8 +412,12 @@ header nav .nav-tools {
   display: none;
   z-index: 1000;
 }
-.lang-switcher.open .lang-menu { display: block; }
-.lang-switcher .lang-menu li { padding: 0; }
+.lang-switcher.open .lang-menu {
+  display: block;
+}
+.lang-switcher .lang-menu li {
+  padding: 0;
+}
 .lang-switcher .lang-menu a {
   display: block;
   padding: 8px 12px;
@@ -387,11 +428,15 @@ header nav .nav-tools {
   background: #f2f2f2;
 }
 header .search.search-icon .icon {
-  width: 24px; height: 24px; background-color: var(--nav-text-color);
+  width: 24px;
+  height: 24px;
+  background-color: var(--nav-text-color);
   -webkit-mask: url(/icons/search.svg) no-repeat center / contain;
   mask: url(/icons/search.svg) no-repeat center / contain;
 }
-header .search.search-icon .icon img { display: none; }
+header .search.search-icon .icon img {
+  display: none;
+}
 /* Language item layout: pretitle (code) then country name */
 .lang-switcher .lang-menu .lang-item a {
   display: flex;
@@ -415,7 +460,7 @@ header .search.search-icon .icon img { display: none; }
 
 /* separator between items (not between country and code) */
 .lang-switcher .lang-menu .lang-item + .lang-item {
-  border-top: 1px solid rgba(0,0,0,0.08);
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 /* remove global after adorners for language items */
@@ -427,34 +472,37 @@ header nav .nav-tools .cancel-container {
   display: none !important;
 }
 
-header nav .nav-tools .icon-search-light  {
+header nav .nav-tools .icon-search-light {
   display: inline-block;
   height: 20px;
   width: 20px;
   margin-bottom: 5px;
 }
 
-
-body.wehealthcare-theme header nav .nav-sections ul > li > a{
-  color:#000;
+body.wehealthcare-theme header nav .nav-sections ul > li > a {
+  color: #000;
 }
 
- body.wehealthcare-theme header .nav-wrapper {
+body.wehealthcare-theme header .nav-wrapper {
   background-color: #fff;
 }
 
-body.wehealthcare-theme .lang-switcher .lang-button{
+body.wehealthcare-theme .lang-switcher .lang-button {
   color: #000;
   border: 1px solid rgb(0 0 0 / 40%);
 }
 
 /* ensure search and language switcher sit side-by-side inside tools */
-header nav .nav-tools .search-wrapper { display: flex; align-items: center; }
-header nav .nav-tools .lang-switcher { display: inline-flex; }
+header nav .nav-tools .search-wrapper {
+  display: flex;
+  align-items: center;
+}
+header nav .nav-tools .lang-switcher {
+  display: inline-flex;
+}
 
 /* Responsive Styles */
 @media (width < 900px) {
-
   header nav[aria-expanded='true'] .nav-sections {
     visibility: visible;
     align-self: start;
@@ -479,9 +527,8 @@ header nav .nav-tools .lang-switcher { display: inline-flex; }
     gap: 35px;
     align-items: flex-start;
   }
-  
-  body.wehealthcare-theme header nav .nav-sections ul > li > a{
-    color:#000;
-  }
 
+  body.wehealthcare-theme header nav .nav-sections ul > li > a {
+    color: #000;
+  }
 }
