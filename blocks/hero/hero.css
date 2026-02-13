@@ -239,6 +239,16 @@
   margin-top: 30px;
 }
 
+/* Add gradient background to text content in fullscreen-vertical */
+.hero.fullscreen-vertical > div:nth-child(2) {
+  padding: 40px;
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.6) 0%, rgba(64, 64, 64, 0.7) 100%);
+  border-radius: 8px;
+  max-width: 1200px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .hero.image-left picture,
 .hero.image-right picture,
 .hero.image-top picture,
@@ -490,6 +500,10 @@ picture {
     min-height: 800px;
     height: 800px;
     padding: 40px 20px;
+  }
+
+  .hero.fullscreen-vertical > div:nth-child(2) {
+    padding: 30px 20px;
   }
 }
 
