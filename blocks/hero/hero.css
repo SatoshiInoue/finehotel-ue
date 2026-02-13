@@ -197,8 +197,8 @@
 
 /* Fullscreen Vertical - Full height hero with centered text */
 .hero.fullscreen-vertical {
-  min-height: 100vh;
-  height: 100vh;
+  min-height: 832px;
+  height: 832px;
   padding: 40px 24px;
   display: flex;
   align-items: center;
@@ -487,8 +487,8 @@ picture {
 
   /* Mobile adjustments for fullscreen-vertical */
   .hero.fullscreen-vertical {
-    min-height: 100vh;
-    height: 100vh;
+    min-height: 800px;
+    height: 800px;
     padding: 40px 20px;
   }
 }
