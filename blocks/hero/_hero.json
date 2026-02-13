@@ -81,6 +81,10 @@
             {
               "name": "Image-Background Text-Right",
               "value": "image-background-text-right"
+            },
+            {
+              "name": "Fullscreen Vertical",
+              "value": "fullscreen-vertical"
             }
           ]
         },
