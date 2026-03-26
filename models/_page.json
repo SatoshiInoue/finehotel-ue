@@ -107,6 +107,13 @@
         "name": "navOrder",
         "label": "Nav Order",
         "description": "Position in navigation (1, 2, 3...). Leave empty to sort last alphabetically."
+      },
+      {
+        "component": "number",
+        "valueType": "number",
+        "name": "listOrder",
+        "label": "List Order",
+        "description": "Position in list blocks (1, 2, 3...). Leave empty to sort last alphabetically."
       }
     ]
   },

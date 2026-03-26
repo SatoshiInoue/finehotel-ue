@@ -51,6 +51,15 @@ indices:
       hideInNav:
         select: head > meta[name="hide-in-nav"]
         value: attribute(el, "content")
+      listOrder:
+        select: head > meta[name="list-order"]
+        value: attribute(el, "content")
+
+  news-en:
+    <<: *base-site
+    include:
+      - '/en/news/**'
+    target: /en/news/query-index.json
 
   site-fr:
     <<: *base-site
