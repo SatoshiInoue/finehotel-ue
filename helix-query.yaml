@@ -45,6 +45,12 @@ indices:
       robots:
         select: head > meta[name="robots"]
         value: attribute(el, "content")
+      navOrder:
+        select: head > meta[name="nav-order"]
+        value: attribute(el, "content")
+      hideInNav:
+        select: head > meta[name="hide-in-nav"]
+        value: attribute(el, "content")
 
   site-fr:
     <<: *base-site

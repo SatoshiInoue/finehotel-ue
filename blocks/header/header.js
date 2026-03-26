@@ -1,6 +1,7 @@
 import { getMetadata, fetchPlaceholders } from '../../scripts/aem.js';
 import { loadFragment } from '../fragment/fragment.js';
 import { getHostname } from '../../scripts/utils.js';
+import ffetch from '../../scripts/ffetch.js';
 
 import { getNavigationMenu, formatNavigationJsonData } from './navigation.js';
 import {
@@ -469,6 +470,116 @@ async function applyCFTheme(themeCFReference) {
 }
 
 /**
+ * Fetches nav pages from the AEM JCR when running in the author environment.
+ * Uses the Sling GET servlet (.2.json) to read direct child pages including
+ * their jcr:content properties (title, hideInNav, navOrder) in one request.
+ * The request is same-origin and uses the author's existing browser session.
+ * @param {string} langCode
+ * @returns {Promise<Array>}
+ */
+async function fetchAuthorNavPages(langCode) {
+  const { pathname } = window.location;
+  // Author paths follow /content/{site}/{region}/{lang}/...
+  // Slice up to and including the langCode segment to get the content root.
+  const parts = pathname.split('/');
+  const langIdx = parts.indexOf(langCode);
+  if (langIdx === -1) return [];
+  const contentRoot = parts.slice(0, langIdx + 1).join('/');
+
+  try {
+    const resp = await fetch(`${contentRoot}.2.json`);
+    if (!resp.ok) return [];
+    const json = await resp.json();
+
+    const pages = [];
+    Object.entries(json).forEach(([key, value]) => {
+      if (!value || typeof value !== 'object') return;
+      if (value['jcr:primaryType'] !== 'cq:Page') return;
+      const content = value['jcr:content'] || {};
+      if (content.hideInNav === true || content.hideInNav === 'true') return;
+      const title = content['jcr:title'] || key;
+      pages.push({
+        path: `/${langCode}/${key}`,
+        title,
+        navTitle: title,
+        navOrder: parseInt(content.navOrder, 10) || 9999,
+      });
+    });
+
+    return pages;
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.warn('Dynamic nav: failed to fetch author page list', e);
+    return [];
+  }
+}
+
+/**
+ * Populates the nav sections list dynamically.
+ * - Author env: reads directly from the AEM JCR (all pages, including drafts).
+ * - All other envs: reads from the EDS query index (published pages only).
+ * Triggered when nav.html has no nav items (empty list = dynamic mode).
+ * @param {Element} navSections
+ * @param {string} langCode
+ */
+async function populateDynamicNav(navSections, langCode) {
+  const langRoot = `/${langCode}/`;
+  let items;
+
+  if (isAuthorEnvironment()) {
+    items = await fetchAuthorNavPages(langCode);
+  } else {
+    // On local dev, preview, and live the query index is reachable at a relative URL.
+    const base = (window.hlx && window.hlx.codeBasePath) || '';
+    const queryIndexUrl = `${base}${langRoot}query-index.json`;
+    try {
+      items = await ffetch(queryIndexUrl)
+        .filter((page) => {
+          if (page.hideInNav === 'true') return false;
+          const relative = page.path.startsWith(langRoot)
+            ? page.path.slice(langRoot.length)
+            : null;
+          return relative && !relative.includes('/') && relative.length > 0;
+        })
+        .all();
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn('Dynamic nav: failed to fetch query index', e);
+      return;
+    }
+  }
+
+  if (!items || !items.length) return;
+
+  items.sort((a, b) => {
+    const oa = parseInt(a.navOrder, 10) || 9999;
+    const ob = parseInt(b.navOrder, 10) || 9999;
+    if (oa !== ob) return oa - ob;
+    return (a.navTitle || a.title || '').localeCompare(b.navTitle || b.title || '');
+  });
+
+  const ul = document.createElement('ul');
+  items.forEach(({ path, navTitle, title }) => {
+    const li = document.createElement('li');
+    const anchor = document.createElement('a');
+    anchor.href = path;
+    anchor.textContent = navTitle || title;
+    li.append(anchor);
+    ul.append(li);
+  });
+
+  let wrapper = navSections.querySelector('.default-content-wrapper');
+  if (!wrapper) {
+    wrapper = document.createElement('div');
+    wrapper.className = 'default-content-wrapper';
+    navSections.append(wrapper);
+  }
+  const existingList = wrapper.querySelector('ul');
+  if (existingList) existingList.replaceWith(ul);
+  else wrapper.append(ul);
+}
+
+/**
  * loads and decorates the header, mainly the nav
  * @param {Element} block The header block element
  */
@@ -526,6 +637,12 @@ export default async function decorate(block) {
 
   const navSections = nav.querySelector('.nav-sections');
   if (navSections) {
+    // Dynamic nav: populate from query index when nav list is empty
+    const existingNavList = navSections.querySelector('.default-content-wrapper > ul');
+    if (!existingNavList || existingNavList.children.length === 0) {
+      await populateDynamicNav(navSections, langCode);
+    }
+
     navSections
       .querySelectorAll(':scope .default-content-wrapper > ul > li')
       .forEach((navSection) => {

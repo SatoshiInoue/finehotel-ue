@@ -71,6 +71,21 @@
         "name": "pageCategory",
         "label": "Page Category",
         "required": true
+      },
+      {
+        "component": "boolean",
+        "valueType": "boolean",
+        "name": "hideInNav",
+        "label": "Hide in Navigation",
+        "description": "If enabled, this page will not appear in the dynamic navigation menu.",
+        "value": "false"
+      },
+      {
+        "component": "number",
+        "valueType": "number",
+        "name": "navOrder",
+        "label": "Nav Order",
+        "description": "Position in navigation (1, 2, 3...). Leave empty to sort last alphabetically."
       }
     ]
   },
