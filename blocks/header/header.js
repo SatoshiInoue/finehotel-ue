@@ -478,7 +478,8 @@ async function applyCFTheme(themeCFReference) {
  * @returns {Promise<Array>}
  */
 async function fetchAuthorNavPages(langCode) {
-  const { pathname } = window.location;
+  // Strip .html so /en.html is treated the same as /en/child.html
+  const pathname = window.location.pathname.replace(/\.html$/, '');
   // Author paths follow /content/{site}/{region}/{lang}/...
   // Slice up to and including the langCode segment to get the content root.
   const parts = pathname.split('/');

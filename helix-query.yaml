@@ -46,13 +46,13 @@ indices:
         select: head > meta[name="robots"]
         value: attribute(el, "content")
       navOrder:
-        select: head > meta[name="nav-order"]
+        select: head > meta[name="navorder"]
         value: attribute(el, "content")
       hideInNav:
-        select: head > meta[name="hide-in-nav"]
+        select: head > meta[name="hideinnav"]
         value: attribute(el, "content")
       listOrder:
-        select: head > meta[name="list-order"]
+        select: head > meta[name="listorder"]
         value: attribute(el, "content")
 
   news-en:
