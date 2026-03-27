@@ -5947,6 +5947,52 @@
         "label": "Max Items",
         "description": "Maximum number of items to show. Set to 0 for no limit.",
         "value": 0
+      },
+      {
+        "component": "boolean",
+        "valueType": "boolean",
+        "name": "paginate",
+        "label": "Enable Pagination",
+        "description": "Show items across multiple pages instead of all at once.",
+        "value": false
+      },
+      {
+        "component": "number",
+        "valueType": "number",
+        "name": "pageSize",
+        "label": "Items Per Page",
+        "description": "Number of items per page (e.g. 5 or 10). Ignored when pagination is disabled.",
+        "value": 5
+      },
+      {
+        "component": "boolean",
+        "valueType": "boolean",
+        "name": "urlState",
+        "label": "Persist Page in URL",
+        "description": "Store the current page in ?page=N so links are shareable and back/forward works. Only applies when pagination is enabled.",
+        "value": false
+      },
+      {
+        "component": "select",
+        "valueType": "string",
+        "name": "listStyle",
+        "label": "List Style",
+        "description": "Visual style of the list. Card: image grid. Small/Medium: compact vertical rows.",
+        "options": [
+          {
+            "name": "Card",
+            "value": "card"
+          },
+          {
+            "name": "Small",
+            "value": "small"
+          },
+          {
+            "name": "Medium",
+            "value": "medium"
+          }
+        ],
+        "value": "card"
       }
     ]
   },

@@ -855,7 +855,11 @@
                   "showDescription": false,
                   "showImage": false,
                   "showDate": false,
-                  "limit": 0
+                  "limit": 0,
+                  "paginate": false,
+                  "pageSize": 5,
+                  "urlState": false,
+                  "listStyle": "card"
                 }
               }
             }

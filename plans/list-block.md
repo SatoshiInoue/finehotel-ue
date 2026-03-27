@@ -27,6 +27,10 @@ The block is placed on any page. In UE, the author configures the following fiel
 | `showImage` | boolean | Include featured image (`og:image`) |
 | `showDate` | boolean | Include last modified / published date |
 | `limit` | number | Maximum items to show (0 = no limit) |
+| `paginate` | boolean | Enable pagination (default `false`) |
+| `pageSize` | number | Items per page when pagination is enabled (default `5`) |
+| `urlState` | boolean | Persist page in `?page=N` URL param (default `false`) |
+| `listStyle` | select | Visual layout: `card` \| `small` \| `medium` (default `card`) |
 
 ### Example block in document
 
@@ -134,7 +138,9 @@ Each list item is an `<li>` with a structured layout:
 </ul>
 ```
 
-The block element itself gets a `list-sortby-{value}` class (e.g. `list-sortby-lastmodified`) to allow CSS targeting by sort mode.
+The block element gets two classes for CSS targeting:
+- `list-sortby-{value}` — e.g. `list-sortby-lastmodified`
+- `list-style-{value}` — e.g. `list-style-card`, `list-style-small`, `list-style-medium`
 
 ---
 
@@ -240,6 +246,7 @@ Run after all `_*.json` edits to regenerate `component-definition.json`, `compon
 ## Known Limitations
 
 - Only **direct children** of `rootPath` are listed (`.2.json` depth = 2 gives one level of children). Recursive listing is out of scope.
+- **Lang-root page**: when the block is placed on the language root page (e.g. `/en.html`), the `.html` suffix was previously preventing `resolveJcrRoot` from finding the `en` segment in the URL. Fixed by stripping `.html` from `window.location.pathname` before splitting — `/en.html` → `/en`.
 - On EDS, the block fetches a **path-scoped index** (`/{rootPath}/query-index.json`). A `helix-query.yaml` entry must exist for each section path used. Without one, the block falls back to the full language index with path-prefix filtering (higher payload). Cross-language listing is not supported.
 - The list is **JS-rendered** — list items and their links are invisible to crawlers that do not execute JavaScript, including most AI/AIO crawlers. Article discoverability depends on the sitemap and static internal links, not on this block.
 - `listOrder` on the author only becomes visible in UE page properties after `npm run build:json` is run and the model is deployed / reflected in the author.
@@ -255,3 +262,256 @@ Run after all `_*.json` edits to regenerate `component-definition.json`, `compon
 3. In UE, author sets Root Path to `/en/news`, chooses sort mode, toggles display options.
 4. On save/preview, the block fetches and renders the list.
 5. On the author tier, draft (unpublished) pages are also visible — same as the navigation behavior.
+
+---
+
+## Phase 2: Pagination
+
+### Goal
+
+Add optional client-side pagination to the list block. All items are fetched up front (unchanged); the block slices the array and renders Prev/Next controls to navigate between pages. The current page is stored in the URL (`?page=N`) so that sharing, refreshing, and browser back/forward all work correctly.
+
+### New UE Fields
+
+Three fields added to the block model **after** `limit` (rows 6, 7, and 8):
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `paginate` | boolean | `false` | Enable pagination. When `false`, all items render at once (current behavior). |
+| `pageSize` | number | `5` | Items per page. Supports any positive integer (e.g. 5, 10, 20). Ignored when `paginate` is `false`. |
+| `urlState` | boolean | `false` | Persist current page in `?page=N` URL param. Enables shareable links and browser back/forward. **Only meaningful when `paginate` is `true`** — ignored otherwise. Note: UE does not support conditional field visibility, so this field always appears in the property panel. |
+
+**Interaction with `limit`:**
+- `limit` caps the total items available (e.g. limit=20 means at most 20 items across all pages).
+- `pageSize` controls how many of those items appear per page.
+- Both can be set independently.
+
+### Implementation — `blocks/list/list.js`
+
+#### `readConfig` update
+
+Add three new rows:
+
+```js
+paginate:  get(6) === 'true',
+pageSize:  parseInt(get(7), 10) || 5,
+urlState:  get(8) === 'true',
+```
+
+Row indices stay stable because the new fields are appended after the existing 6 fields.
+
+#### New `renderPaginatedList(pages, config, block)` function
+
+Branches on `urlState` to choose between URL-based and in-memory page tracking. Render logic and controls are identical in both paths.
+
+```
+renderPaginatedList(pages, config, block):
+  { pageSize, urlState } = config
+  totalPages = Math.ceil(pages.length / pageSize)
+
+  // --- URL state path ---
+  function getPageFromUrl():
+    p = parseInt(new URLSearchParams(location.search).get('page'), 10) || 1
+    return Math.max(1, Math.min(p, totalPages)) - 1   // clamp, convert to 0-based
+
+  // --- In-memory path ---
+  currentPage = 0   // used only when urlState is false
+
+  function render(page):
+    block.innerHTML = ''
+    const slice = pages.slice(page * pageSize, (page + 1) * pageSize)
+    block.append(renderList(slice, config))
+    if totalPages > 1:
+      block.append(buildPaginationControls(page, totalPages, onPageChange))
+
+  function onPageChange(newPage):
+    if urlState:
+      const params = new URLSearchParams(location.search)
+      params.set('page', newPage + 1)           // URL is 1-based
+      history.pushState(null, '', `?${params}`)
+    else:
+      currentPage = newPage
+    render(newPage)
+    block.scrollIntoView({ behavior: 'smooth', block: 'start' })
+
+  if urlState:
+    window.addEventListener('popstate', () => render(getPageFromUrl()))
+    render(getPageFromUrl())
+  else:
+    render(0)
+```
+
+**URL scheme (when `urlState` is `true`):** `?page=N` (1-based). Page 1 needs no param — clean URL on initial load.
+
+#### `buildPaginationControls(currentPage, totalPages, onChange)` helper
+
+Returns a `<nav class="list-pagination">` element:
+
+```html
+<nav class="list-pagination" aria-label="List pagination">
+  <button class="list-pagination-btn list-pagination-prev" disabled?>← Previous</button>
+  <span class="list-pagination-info">Page 1 of 3</span>
+  <button class="list-pagination-btn list-pagination-next" disabled?>Next →</button>
+</nav>
+```
+
+- Prev button disabled on page 0; Next button disabled on last page.
+- Clicking fires `onChange(newPage)`.
+
+#### `decorate` update
+
+```js
+const limited = limit > 0 ? sorted.slice(0, limit) : sorted;
+
+if (paginate && limited.length > pageSize) {
+  renderPaginatedList(limited, config, block);
+} else {
+  block.append(renderList(limited, config));
+}
+```
+
+When `paginate` is `true` but all items fit on one page (`limited.length <= pageSize`), no controls are rendered — the pagination nav is omitted entirely.
+
+### Implementation — `blocks/list/list.css`
+
+```css
+.list .list-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-gray, #e0e0e0);
+}
+
+.list .list-pagination-btn {
+  padding: 0.5rem 1.25rem;
+  border: 1px solid var(--color-gray, #e0e0e0);
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  font-size: var(--body-font-size-s, 0.9rem);
+  color: var(--link-color, #035fe6);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.list .list-pagination-btn:hover:not(:disabled) {
+  background: var(--link-color, #035fe6);
+  color: #fff;
+}
+
+.list .list-pagination-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.list .list-pagination-info {
+  font-size: var(--body-font-size-s, 0.9rem);
+  color: var(--color-gray-dark, #666);
+  min-width: 6rem;
+  text-align: center;
+}
+```
+
+### Implementation — `blocks/list/_list.json`
+
+Append two fields to the `models[0].fields` array and add defaults to the `definitions` template:
+
+```json
+// in models[0].fields (after "limit"):
+{
+  "component": "boolean",
+  "valueType": "boolean",
+  "name": "paginate",
+  "label": "Enable Pagination",
+  "description": "Show items across multiple pages instead of all at once.",
+  "value": false
+},
+{
+  "component": "number",
+  "valueType": "number",
+  "name": "pageSize",
+  "label": "Items Per Page",
+  "description": "Number of items per page (e.g. 5 or 10). Ignored when pagination is disabled.",
+  "value": 5
+},
+{
+  "component": "boolean",
+  "valueType": "boolean",
+  "name": "urlState",
+  "label": "Persist Page in URL",
+  "description": "Store the current page in ?page=N so links are shareable and back/forward works. Only applies when pagination is enabled.",
+  "value": false
+}
+
+// in definitions[0].plugins.xwalk.page.template:
+"paginate": false,
+"pageSize": 5,
+"urlState": false
+```
+
+### Build Step
+
+After editing `_list.json`:
+
+```bash
+npm run build:json
+```
+
+### Files Changed (Phase 2)
+
+| File | Change |
+|---|---|
+| `blocks/list/_list.json` | Add `paginate`, `pageSize`, `urlState` fields + template defaults |
+| `blocks/list/list.js` | Update `readConfig`, add `buildPaginationControls`, add `renderPaginatedList`, update `decorate` |
+| `blocks/list/list.css` | Add `.list-pagination*` styles |
+| `component-models.json` | Generated — rebuilt by `npm run build:json` |
+| `component-definition.json` | Generated — rebuilt by `npm run build:json` |
+
+### Known Limitations (Phase 2)
+
+- `urlState` is always visible in the UE property panel regardless of whether `paginate` is enabled. It is silently ignored in JS when `paginate` is `false` — UE does not support conditional field visibility.
+- When `urlState` is `true`, multiple list blocks on the same page would share the `?page=N` param and both respond to it. Use `urlState` only on pages with a single list block.
+- On the author tier, `history.pushState` is a no-op inside the UE iframe; pagination still works visually but the URL won't update. This is acceptable for authoring.
+- `pageSize` accepts any positive integer via the UE number input; no min/max validation is enforced in the model.
+
+---
+
+## Phase 3: List Style Variants
+
+### Goal
+
+Add a `listStyle` select field so authors can choose the visual layout of the list without custom CSS.
+
+### New UE Field
+
+One field appended after `urlState` (row 9):
+
+| Field | Type | Default | Options |
+|---|---|---|---|
+| `listStyle` | select | `card` | `card`, `small`, `medium` |
+
+### Style Descriptions
+
+| Value | Layout |
+|---|---|
+| `card` | Responsive grid (1 → 2 → 3 columns). Full-width 16:9 image above the text body. Default behavior. |
+| `small` | Vertical list with a small 3 rem square thumbnail on the left. Compact row, minimal padding. |
+| `medium` | Vertical list with a wider image on the left (10–12 rem). Border + hover shadow. Chevron vertically centred via `align-self: center`. |
+
+### Implementation
+
+- `readConfig`: add `listStyle: get(9) || 'card'`
+- `decorate`: add `block.classList.add(\`list-style-\${listStyle}\`)`
+- CSS: base styles are shared; each variant is scoped under `.list.list-style-{value}`
+
+### Files Changed (Phase 3)
+
+| File | Change |
+|---|---|
+| `blocks/list/_list.json` | Add `listStyle` field + template default |
+| `blocks/list/list.js` | Read `listStyle` from row 9, add class in `decorate` |
+| `blocks/list/list.css` | Refactor into shared base + three scoped variant sections |
+| `component-models.json` | Generated |
+| `component-definition.json` | Generated |

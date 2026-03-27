@@ -5,9 +5,12 @@ import { isAuthorEnvironment } from '../../scripts/scripts.js';
 /**
  * Reads the block's authored field values from its DOM rows.
  * Each row maps to one model field in definition order:
- *   0: rootPath, 1: sortBy, 2: showDescription, 3: showImage, 4: showDate, 5: limit
+ *   0: rootPath, 1: sortBy, 2: showDescription, 3: showImage, 4: showDate,
+ *   5: limit, 6: paginate, 7: pageSize, 8: urlState, 9: listStyle
  * @param {Element} block
- * @returns {{ rootPath: string, sortBy: string, showDescription: boolean, showImage: boolean, showDate: boolean, limit: number }}
+ * @returns {{ rootPath: string, sortBy: string, showDescription: boolean,
+ *   showImage: boolean, showDate: boolean, limit: number,
+ *   paginate: boolean, pageSize: number, urlState: boolean, listStyle: string }}
  */
 function readConfig(block) {
   const rows = [...block.children];
@@ -19,6 +22,10 @@ function readConfig(block) {
     showImage: get(3) === 'true',
     showDate: get(4) === 'true',
     limit: parseInt(get(5), 10) || 0,
+    paginate: get(6) === 'true',
+    pageSize: parseInt(get(7), 10) || 5,
+    urlState: get(8) === 'true',
+    listStyle: get(9) || 'card',
   };
 }
 
@@ -40,7 +47,8 @@ function getLangFromPath(rootPath) {
  * @returns {string|null} JCR path, or null if mapping fails
  */
 function resolveJcrRoot(rootPath, langCode) {
-  const { pathname } = window.location;
+  // Strip .html so /en.html is treated the same as /en/sub/page.html
+  const pathname = window.location.pathname.replace(/\.html$/, '');
   const parts = pathname.split('/');
   const langIdx = parts.indexOf(langCode);
   if (langIdx === -1) return null;
@@ -53,9 +61,9 @@ function resolveJcrRoot(rootPath, langCode) {
 
 /**
  * Fetches child pages from the AEM JCR on the author tier.
- * Uses the Sling GET servlet (.2.json) which returns one level of child nodes
- * including their jcr:content properties.
- * Note: og:image is not reliably available from .2.json, so image is omitted on author.
+ * Uses the Sling GET servlet (.2.json) for the page list, then fetches each
+ * article's rendered HTML in parallel to extract the og:image meta tag.
+ * The HTML fetch is same-origin and uses the author's existing browser session.
  * @param {string} rootPath  EDS-style path, e.g. "/en/news"
  * @param {string} langCode
  * @returns {Promise<Array>}
@@ -78,6 +86,7 @@ async function fetchAuthorListPages(rootPath, langCode) {
       const lastModifiedRaw = content['cq:lastModified'] || content['jcr:lastModified'] || '';
       pages.push({
         path: `${rootPath}/${key}`,
+        jcrPath: `${jcrRoot}/${key}`,
         title,
         description: content['jcr:description'] || '',
         image: '',
@@ -86,6 +95,24 @@ async function fetchAuthorListPages(rootPath, langCode) {
       });
     });
 
+    // Fetch each article's rendered HTML to extract og:image (parallel, same-origin).
+    // This is the only reliable way to get the featured image on the author tier
+    // since the og:image is derived from page content, not a flat jcr:content property.
+    await Promise.all(
+      pages.map(async (page) => {
+        try {
+          const pageResp = await fetch(`${page.jcrPath}.html`);
+          if (!pageResp.ok) return;
+          const html = await pageResp.text();
+          const doc = new DOMParser().parseFromString(html, 'text/html');
+          page.image = doc.querySelector('meta[property="og:image"]')?.getAttribute('content') || '';
+        } catch {
+          // image stays empty — placeholder will render instead
+        }
+      }),
+    );
+
+    pages.forEach((p) => { delete p.jcrPath; });
     return pages;
   } catch (e) {
     // eslint-disable-next-line no-console
@@ -111,10 +138,10 @@ async function fetchPublishedListPages(rootPath, langCode) {
   try {
     const probe = await fetch(scopedUrl, { method: 'HEAD' });
     if (probe.ok) {
-      const items = await ffetch(scopedUrl).all();
+      const items = await ffetch(scopedUrl).filter((p) => p.path !== rootPath).all();
       return items.map((p) => ({
         path: p.path,
-        title: p.title || p.navTitle || '',
+        title: p.navTitle || p.title || '',
         description: p.description || '',
         image: p.image || '',
         lastModified: p.lastModified || 0,
@@ -133,7 +160,7 @@ async function fetchPublishedListPages(rootPath, langCode) {
       .all();
     return items.map((p) => ({
       path: p.path,
-      title: p.title || p.navTitle || '',
+      title: p.navTitle || p.title || '',
       description: p.description || '',
       image: p.image || '',
       lastModified: p.lastModified || 0,
@@ -188,6 +215,18 @@ function formatDate(ts) {
 }
 
 /**
+ * Returns a gray placeholder div for the image slot.
+ * Used when showImage is true but no image URL is available,
+ * or as an onerror fallback when the image fails to load.
+ * @returns {Element}
+ */
+function createImagePlaceholder() {
+  const ph = document.createElement('div');
+  ph.className = 'list-item-image list-item-image-placeholder';
+  return ph;
+}
+
+/**
  * Builds and returns the <ul> list element from the page array.
  * @param {Array} pages
  * @param {{ showDescription: boolean, showImage: boolean, showDate: boolean }} config
@@ -205,10 +244,19 @@ function renderList(pages, config) {
     const a = document.createElement('a');
     a.href = page.path;
 
-    if (showImage && page.image) {
-      const pic = createOptimizedPicture(page.image, page.title, false, [{ width: '400' }]);
-      pic.classList.add('list-item-image');
-      a.append(pic);
+    if (showImage) {
+      if (page.image) {
+        const pic = createOptimizedPicture(page.image, page.title, false, [{ width: '400' }]);
+        pic.classList.add('list-item-image');
+        // If the image URL is broken or fails to load, fall back to the gray placeholder
+        const img = pic.querySelector('img');
+        if (img) {
+          img.addEventListener('error', () => { pic.replaceWith(createImagePlaceholder()); }, { once: true });
+        }
+        a.append(pic);
+      } else {
+        a.append(createImagePlaceholder());
+      }
     }
 
     const body = document.createElement('div');
@@ -229,7 +277,7 @@ function renderList(pages, config) {
       const dateEl = document.createElement('p');
       dateEl.className = 'list-item-date';
       const time = document.createElement('time');
-      time.dateTime = new Date(page.lastModified * 1000).toISOString().split('T')[0];
+      [time.dateTime] = new Date(page.lastModified * 1000).toISOString().split('T');
       time.textContent = formatDate(page.lastModified);
       dateEl.append(time);
       body.append(dateEl);
@@ -244,6 +292,94 @@ function renderList(pages, config) {
 }
 
 /**
+ * Builds the pagination nav (Prev / Page N of M / Next).
+ * @param {number} currentPage  0-based current page index
+ * @param {number} totalPages
+ * @param {function} onChange  called with the new 0-based page index
+ * @returns {Element}
+ */
+function buildPaginationControls(currentPage, totalPages, onChange) {
+  const nav = document.createElement('nav');
+  nav.className = 'list-pagination';
+  nav.setAttribute('aria-label', 'List pagination');
+
+  const prev = document.createElement('button');
+  prev.className = 'list-pagination-btn list-pagination-prev';
+  prev.textContent = '← Previous';
+  prev.disabled = currentPage === 0;
+  prev.addEventListener('click', () => onChange(currentPage - 1));
+
+  const info = document.createElement('span');
+  info.className = 'list-pagination-info';
+  info.textContent = `Page ${currentPage + 1} of ${totalPages}`;
+
+  const next = document.createElement('button');
+  next.className = 'list-pagination-btn list-pagination-next';
+  next.textContent = 'Next →';
+  next.disabled = currentPage === totalPages - 1;
+  next.addEventListener('click', () => onChange(currentPage + 1));
+
+  nav.append(prev, info, next);
+  return nav;
+}
+
+/**
+ * Renders the list with pagination controls, managing page state either via
+ * a URL query param (?page=N) or an in-memory variable depending on urlState.
+ * @param {Array} pages
+ * @param {{ pageSize: number, urlState: boolean }} config
+ * @param {Element} block
+ */
+function renderPaginatedList(pages, config, block) {
+  const { pageSize, urlState } = config;
+  const totalPages = Math.ceil(pages.length / pageSize);
+
+  function getPageFromUrl() {
+    const p = parseInt(new URLSearchParams(window.location.search).get('page'), 10) || 1;
+    return Math.max(1, Math.min(p, totalPages)) - 1; // clamp, convert to 0-based
+  }
+
+  let currentPage = 0;
+
+  function onPageChange(newPage) {
+    if (urlState) {
+      const params = new URLSearchParams(window.location.search);
+      if (newPage === 0) {
+        params.delete('page');
+      } else {
+        params.set('page', newPage + 1); // URL is 1-based
+      }
+      const query = params.toString();
+      window.history.pushState(null, '', query ? `?${query}` : window.location.pathname);
+    } else {
+      currentPage = newPage;
+    }
+    // eslint-disable-next-line no-use-before-define
+    render(newPage);
+    block.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function render(page) {
+    // Remove previous list and controls, leave other block children intact
+    block.querySelectorAll('.list-items, .list-pagination').forEach((el) => el.remove());
+
+    const slice = pages.slice(page * pageSize, (page + 1) * pageSize);
+    block.append(renderList(slice, config));
+
+    if (totalPages > 1) {
+      block.append(buildPaginationControls(page, totalPages, onPageChange));
+    }
+  }
+
+  if (urlState) {
+    window.addEventListener('popstate', () => render(getPageFromUrl()));
+    render(getPageFromUrl());
+  } else {
+    render(currentPage);
+  }
+}
+
+/**
  * List block decorator.
  * Reads config from the block's authored rows, fetches child pages from the appropriate
  * data source (JCR on author, query index on EDS), sorts them, and renders the list.
@@ -251,10 +387,13 @@ function renderList(pages, config) {
  */
 export default async function decorate(block) {
   const config = readConfig(block);
-  const { rootPath, sortBy, limit } = config;
+  const {
+    rootPath, sortBy, limit, paginate, pageSize, listStyle,
+  } = config;
   const langCode = getLangFromPath(rootPath);
 
-  // Add a sort-mode class for CSS targeting
+  // Add style and sort-mode classes for CSS targeting
+  block.classList.add(`list-style-${listStyle}`);
   block.classList.add(`list-sortby-${sortBy}`);
 
   // Clear the raw config rows before rendering
@@ -278,5 +417,9 @@ export default async function decorate(block) {
   const sorted = sortPages(pages, sortBy);
   const limited = limit > 0 ? sorted.slice(0, limit) : sorted;
 
-  block.append(renderList(limited, config));
+  if (paginate && limited.length > pageSize) {
+    renderPaginatedList(limited, config, block);
+  } else {
+    block.append(renderList(limited, config));
+  }
 }
