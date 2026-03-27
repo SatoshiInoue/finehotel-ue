@@ -48,12 +48,14 @@ the delivery tier shows only what is published.
 
 ```yaml
 navOrder:
-  select: head > meta[name="nav-order"]
+  select: head > meta[name="navorder"]
   value: attribute(el, "content")
 hideInNav:
-  select: head > meta[name="hide-in-nav"]
+  select: head > meta[name="hideinnav"]
   value: attribute(el, "content")
 ```
+
+> **Note:** AEM XWalk renders JCR page property names as **all-lowercase meta tag names with no hyphens** (e.g. `navOrder` → `<meta name="navorder">`). Kebab-case selectors (`nav-order`, `hide-in-nav`) do not match. Confirmed by inspecting the published page HTML directly.
 
 ### 2. `models/_component-models.json` and `models/_page.json`
 
@@ -171,3 +173,29 @@ compatible).
   real time).
 - Directory order sort on EDS falls back to alphabetical — JCR order is not available in
   the query index and would require a separate mechanism to replicate it.
+
+---
+
+## Bug Fixes
+
+### Lang-root page shows no nav (author)
+
+`fetchAuthorNavPages` used `pathname.split('/').indexOf(langCode)` to locate the language
+segment. When editing the language root page, `window.location.pathname` is `/en.html`;
+the segment is `'en.html'` not `'en'`, so `indexOf` returned `-1` and the function
+returned an empty list immediately.
+
+**Fix:** strip `.html` from `pathname` before splitting — the same normalisation already
+applied in `resolveJcrRoot` (list block) and `getPathDetails` (utils).
+
+### `navOrder` / `hideInNav` never populated in EDS query index
+
+The `helix-query.yaml` selectors used kebab-case names (`nav-order`, `hide-in-nav`).
+AEM XWalk actually renders camelCase page property names as **all-lowercase** meta tags
+with no hyphens (`navorder`, `hideinnav`). Confirmed by inspecting the live page HTML.
+
+**Fix:** update all three selectors in `helix-query.yaml` to use the correct lowercase
+names (`navorder`, `hideinnav`, `listorder`).
+
+**Action required after deploy:** re-publish any page that has `navOrder` or `hideInNav`
+set so EDS re-indexes it with the corrected selectors.
